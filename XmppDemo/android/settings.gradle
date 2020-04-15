@@ -1,5 +1,0 @@
-rootProject.name = 'XmppDemo'
-
-include ':app'
-include ':react-native-xmpp'
-project(':react-native-xmpp').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-xmpp/android')
