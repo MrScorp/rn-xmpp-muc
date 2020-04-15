@@ -12,7 +12,10 @@ var map = {
     'error': 'RNXMPPError',
     'loginError': 'RNXMPPLoginError',
     'login': 'RNXMPPLogin',
-    'roster': 'RNXMPPRoster'
+    'roster': 'RNXMPPRoster',
+    'roomjoined': 'RNXMPPRoomJoined',
+    'invitedroomjoined': "RNXMPPInvitedRoomJoined",
+    'occupantjoined': 'RNXMPPOccupantJoined'
 }
 
 const LOG = (message) => {
@@ -109,11 +112,11 @@ class XMPP {
         React.NativeModules.RNXMPP.trustHosts(hosts);
     }
 
-    connect(username, password, auth = RNXMPP.SCRAMSHA1, hostname = null, port = 5222){
+    async connect(username, password, auth = RNXMPP.SCRAMSHA1, hostname = null, port = 5222, xmppDomainName = null){
         if (!hostname){
             hostname = (username+'@/').split('@')[1].split('/')[0];
         }
-        React.NativeModules.RNXMPP.connect(username, password, auth, hostname, port);
+        return React.NativeModules.RNXMPP.connect(username, password, auth, hostname, port, xmppDomainName);
     }
 
     message(text, user, thread = null){
@@ -148,12 +151,16 @@ class XMPP {
       }
     }
 
-    joinRoom(roomJID, nickname) {
-        React.NativeModules.RNXMPP.joinRoom(roomJID, nickname);
+    sendRoomInvite(roomJID, to, reason) {
+        React.NativeModules.RNXMPP.sendRoomInvite(roomJID, to, reason);
     }
 
-    sendRoomMessage(message, roomJID) {
-        React.NativeModules.RNXMPP.sendRoomMessage(message, roomJID);
+    joinRoom(roomJID, nickname, password) {
+        React.NativeModules.RNXMPP.joinRoom(roomJID, nickname, password);
+    }
+
+    sendRoomMessage(roomJID, password,  message) {
+        React.NativeModules.RNXMPP.sendRoomMessage(roomJID, password, message);
     }
 
     leaveRoom(roomJID) {
