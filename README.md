@@ -1,4 +1,4 @@
-# react-native-xmpp
+# rn-xmpp-muc
 
 An XMPP library for React Native.
 
