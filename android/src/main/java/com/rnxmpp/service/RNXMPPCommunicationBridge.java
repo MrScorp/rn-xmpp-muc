@@ -19,8 +19,6 @@ import org.jivesoftware.smack.roster.RosterGroup;
 import org.jivesoftware.smackx.muc.RoomInfo;
 import org.json.JSONException;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rnxmpp.utils.Parser;
 
 import fr.arnaudguyon.xmltojsonlib.XmlToJson;
@@ -107,13 +105,9 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
     @Override
     public void onIQ(IQ iq) {
         try {
-
-            ObjectMapper mapper = new ObjectMapper();
-            Log.d("ReactNative","# IQ # : " + mapper.writeValueAsString(iq) );
-
-            XmlToJson xmlToJson = new XmlToJson.Builder(iq.getChildElementXML().toString()).build();
-            sendEvent(reactContext, RNXMPP_IQ, Parser.jsonToReact(xmlToJson.toJson()));
-        }catch( JSONException | JsonProcessingException e){
+            XmlToJson xmlToJson = new XmlToJson.Builder(iq.toXML("iq").toString()).build();
+            sendEvent(reactContext, RNXMPP_IQ, Parser.jsonToReact(xmlToJson.toJson().getJSONObject("iq")));
+        }catch( JSONException e){
             Log.d("ReactNative", e.getMessage());
         }
     }
