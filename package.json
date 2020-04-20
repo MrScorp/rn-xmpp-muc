@@ -1,15 +1,15 @@
 {
-  "name": "react-native-xmpp",
-  "version": "1.0.3",
-  "description": "XMPP Library for React Native",
-  "homepage":"https://github.com/aksonov/react-native-xmpp",
+  "name": "rn-xmpp-muc",
+  "version": "1.0.0",
+  "description": "XMPP MUC Library for React Native",
+  "homepage":"https://github.com/MrScorp/rn-xmpp-muc",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/aksonov/react-native-xmpp.git"
+    "url": "git+https://github.com/MrScorp/rn-xmpp-muc.git"
   },
   "keywords": [
     "xmpp",
@@ -17,10 +17,10 @@
     "xmppframework"
   ],
   "author": {
-    "name": "Pavlo Aksonov"
+    "name": "Vigith"
   },
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/aksonov/react-native-xmpp/issues"
+    "url": "https://github.com/MrScorp/rn-xmpp-muc/issues"
   }
 }
