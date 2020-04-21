@@ -53,8 +53,8 @@ public class RNXMPPModule extends ReactContextBaseJavaModule implements com.rnxm
     }
 
     @ReactMethod
-    public void joinRoom(String mucJid, String userNickname, String password) {
-        this.xmppService.joinRoom(mucJid, userNickname, password);
+    public void joinRoom(String mucJid, String userNickname, String password, String historyFrom) {
+        this.xmppService.joinRoom(mucJid, userNickname, password, historyFrom);
     }
 
     @ReactMethod

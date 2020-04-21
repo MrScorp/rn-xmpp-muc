@@ -16,10 +16,13 @@ import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smack.roster.RosterEntry;
 import org.jivesoftware.smack.roster.RosterGroup;
+import org.jivesoftware.smackx.delay.packet.DelayInformation;
 import org.jivesoftware.smackx.muc.RoomInfo;
 import org.json.JSONException;
 
 import com.rnxmpp.utils.Parser;
+
+import java.text.SimpleDateFormat;
 
 import fr.arnaudguyon.xmltojsonlib.XmlToJson;
 
@@ -42,6 +45,7 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
     public static final String RNXMPP_LOGIN =       "RNXMPPLogin";
     public static final String RNXMPP_ROOMJOIN =       "RNXMPPRoomJoined";
     public static final String RNXMPP_INVITEDROOMJOIN = "RNXMPPInvitedRoomJoined";
+    private static String lastMessageId = "";
 
     ReactContext reactContext;
 
@@ -67,6 +71,18 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
     @Override
     public void onMessage(Message message) {
         try {
+            //Block repeated messages with same id
+            if (message.getStanzaId().equals(lastMessageId)){
+                return;
+            }
+
+            lastMessageId = message.getStanzaId();
+            String ts = "";
+            try{
+                DelayInformation delayInformation = message.getExtension("delay", "urn:xmpp:delay");
+                ts = String.valueOf( delayInformation.getStamp().getTime());
+            }catch(Exception e){ }
+
             //ObjectMapper mapper = new ObjectMapper();
             Log.d("ReactNative", "New Message " + message.toXML("message"));
 
@@ -76,7 +92,7 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
             params.putString("body", message.getBody());
             params.putString("from", message.getFrom().toString());
             params.putString("to", message.getTo().toString());
-
+            params.putString("timestamp", ts);
             params.putString("src", message.toXML("message").toString());
             sendEvent(reactContext, RNXMPP_MESSAGE, params);
         }catch(Exception e){

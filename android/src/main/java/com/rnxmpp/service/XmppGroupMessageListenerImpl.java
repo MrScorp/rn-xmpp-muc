@@ -19,7 +19,8 @@ public class XmppGroupMessageListenerImpl implements com.rnxmpp.service.XmppGrou
     }
 
     public void processMessage(Message message) {
-        Log.d("ReactNative", "Rx Group Message : " + message.toString());
+        Log.d("ReactNative", "Rx Group Message : " + message.getStanzaId());
+
         this.xmppServiceListener.onMessage(message);
     }
 

@@ -32,6 +32,7 @@ import org.jivesoftware.smack.util.XmlStringBuilder;
 import org.jivesoftware.smack.util.TLSUtils;
 import org.jivesoftware.smack.ConnectionConfiguration.SecurityMode;
 import org.jivesoftware.smackx.muc.InvitationListener;
+import org.jivesoftware.smackx.muc.MucEnterConfiguration;
 import org.jivesoftware.smackx.muc.MultiUserChat;
 import org.jivesoftware.smackx.muc.MultiUserChatException;
 import org.jivesoftware.smackx.muc.MultiUserChatManager;
@@ -57,6 +58,7 @@ import java.security.NoSuchAlgorithmException;
 
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
@@ -232,13 +234,28 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
     }
 
     @Override
-    public void joinRoom(String roomJid, String userNickname, String password) {
-        Log.d("ReactNative","Impl: Joining "+roomJid+" as "+userNickname+" with pwd "+password);
+    public void joinRoom(String roomJid, String userNickname, String password, String historyFrom) {
+        Log.d("ReactNative","Impl: Joining "+roomJid+" as "+userNickname+" with pwd "+password+"  history from "+historyFrom);
         try {
+            if (historyFrom == null)
+                historyFrom = "0";
+
+            Long timestamp =  Long.parseLong(historyFrom);
+
             MultiUserChatManager manager = MultiUserChatManager.getInstanceFor(connection);
             MultiUserChat muc = manager.getMultiUserChat(JidCreate.entityBareFrom(roomJid));
 
-            muc.join(Resourcepart.from(userNickname), password);
+            MucEnterConfiguration.Builder mecb = muc.getEnterConfigurationBuilder(Resourcepart.from(userNickname));
+            if (timestamp > 5000L){
+                mecb.requestHistorySince(new Date(timestamp));
+            } else {
+                mecb.requestNoHistory();
+            }
+            MucEnterConfiguration mucEnterConfig = mecb.withPassword(password).build();
+            muc.join(mucEnterConfig);
+
+            //muc.join(Resourcepart.from(userNickname), password);
+
 
             Log.d("ReactNative","Joined.. "+muc.isJoined());
 

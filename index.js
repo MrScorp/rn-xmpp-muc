@@ -155,8 +155,8 @@ class XMPP {
         React.NativeModules.RNXMPP.sendRoomInvite(roomJID, to, reason);
     }
 
-    joinRoom(roomJID, nickname, password) {
-        React.NativeModules.RNXMPP.joinRoom(roomJID, nickname, password);
+    joinRoom(roomJID, nickname, password, history) {
+        React.NativeModules.RNXMPP.joinRoom(roomJID, nickname, password, history);
     }
 
     sendRoomMessage(roomJID, password,  message) {

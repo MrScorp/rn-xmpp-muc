@@ -21,7 +21,7 @@ public interface XmppService {
     void sendRoomInvite(String roomJid, String to, String reason);
 
     @ReactMethod
-    void joinRoom(String mucJid, String userNickname, String password);
+    void joinRoom(String mucJid, String userNickname, String password, String historyFrom);
 
     @ReactMethod
     void sendRoomMessage(String roomJid, String password, String text);
