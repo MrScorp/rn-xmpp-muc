@@ -68,6 +68,7 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
     public void onMessage(Message message) {
         try {
             //ObjectMapper mapper = new ObjectMapper();
+            Log.d("ReactNative", "New Message " + message.toXML("message"));
 
             WritableMap params = Arguments.createMap();
             params.putString("thread", message.getThread());

@@ -7,6 +7,7 @@ import com.facebook.react.bridge.ReadableArray;
 
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.ConnectionListener;
+import org.jivesoftware.smack.ReconnectionManager;
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.StanzaListener;
 import org.jivesoftware.smack.XMPPConnection;
@@ -37,6 +38,9 @@ import org.jivesoftware.smackx.muc.MultiUserChatManager;
 
 import org.jivesoftware.smackx.muc.RoomInfo;
 import org.jivesoftware.smackx.muc.packet.MUCUser;
+import org.jivesoftware.smackx.ping.PingManager;
+import org.jivesoftware.smackx.ping.packet.Ping;
+import org.jivesoftware.smackx.receipts.DeliveryReceiptRequest;
 import org.jxmpp.jid.EntityBareJid;
 import org.jxmpp.jid.EntityJid;
 import org.jxmpp.jid.impl.JidCreate;
@@ -129,10 +133,14 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
         XMPPTCPConnectionConfiguration connectionConfiguration = confBuilder.build();
         connection = new XMPPTCPConnection(connectionConfiguration);
 
-        connection.setUseStreamManagement(true);
-        connection.setUseStreamManagementResumption(true);
+        ReconnectionManager.getInstanceFor(connection).enableAutomaticReconnection();
 
-        connection.addAsyncStanzaListener(this, new OrFilter(new StanzaTypeFilter(IQ.class), new StanzaTypeFilter(Presence.class)));
+
+
+        connection.setReplyTimeout(10000);
+
+        //connection.addAsyncStanzaListener(this, new OrFilter(new StanzaTypeFilter(IQ.class), new StanzaTypeFilter(Presence.class)));
+        connection.addAsyncStanzaListener(this, stanza -> true);
         connection.addConnectionListener(this);
 
         ChatManager.getInstanceFor(connection).addChatListener(this);
@@ -140,33 +148,30 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
         roster.addRosterLoadedListener(this);
 
         final MultiUserChatManager mucManager = MultiUserChatManager.getInstanceFor(connection);
-        mucManager.addInvitationListener(new InvitationListener() {
-            @Override
-            public void invitationReceived(XMPPConnection xmppConnection, MultiUserChat muc, EntityJid jid, String reason, String password, Message message, MUCUser.Invite invite) {
-                try{
-                    Log.d("ReactNative","Invitation Received from "+jid.toString()+" : "+invite);
+        mucManager.addInvitationListener((xmppConnection, muc, fromRoomJID, reason, password1, message, invite) -> {
+            try{
+                Log.d("ReactNative","Invitation Received from "+ fromRoomJID.toString()+" : "+invite);
 
-                    if (mucManager.getJoinedRooms().contains(jid.asEntityBareJid())){
-                        Log.d("ReactNative","Already  Joined as "+userId);
-                        return;
-                    }
-                    Log.d("ReactNative","Joining as "+userId);
+                if (mucManager.getJoinedRooms().contains(fromRoomJID.asEntityBareJid())){
+                    Log.d("ReactNative","Already  Joined as "+userId);
+                    return;
+                }
+                Log.d("ReactNative","Joining as "+userId);
 
-                    muc.join(Resourcepart.from(userId), password);
+                muc.join(Resourcepart.from(userId), password1);
 
-                    groupMessageListner = new XmppGroupMessageListenerImpl(XmppServiceSmackImpl.this.xmppServiceListener, logger);
-                    muc.addMessageListener(groupMessageListner);
+                groupMessageListner = new XmppGroupMessageListenerImpl(XmppServiceSmackImpl.this.xmppServiceListener, logger);
+                muc.addMessageListener(groupMessageListner);
 
-                    RoomInfo info = mucManager.getRoomInfo(muc.getRoom());
+                RoomInfo info = mucManager.getRoomInfo(muc.getRoom());
 
-                    XmppServiceSmackImpl.this.xmppServiceListener.onInvitedRoomJoined(info, password);
+                XmppServiceSmackImpl.this.xmppServiceListener.onInvitedRoomJoined(info, password1);
 
-                }catch(Exception e){
-                    e.printStackTrace();
-                    Log.d("ReactNative", "Error while receiving MUC Invite : "  + e);
-                    for(int i=0; i<e.getStackTrace().length;i++){
-                        Log.d("ReactNative", e.getStackTrace()[i].toString());
-                    }
+            }catch(Exception e){
+                e.printStackTrace();
+                Log.d("ReactNative", "Error while receiving MUC Invite : "  + e);
+                for(int i=0; i<e.getStackTrace().length;i++){
+                    Log.d("ReactNative", e.getStackTrace()[i].toString());
                 }
             }
         });
@@ -181,6 +186,11 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
                     Log.d("ReactNative", "Connected : "+connection.isConnected());
                     connection.login();
                     Log.d("ReactNative", "Logged In : "+connection.isAuthenticated()+"  "+connection.getUser());
+
+                    PingManager pingManager = PingManager.getInstanceFor(connection);
+                    pingManager.setPingInterval(60);
+                    pingManager.pingMyServer();
+
 
                 } catch (XMPPException | SmackException | IOException | InterruptedException e) {
                     Log.d("ReactNative", "Could not login for user " + jidParts[0], e);
@@ -232,19 +242,18 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
 
             Log.d("ReactNative","Joined.. "+muc.isJoined());
 
-            groupMessageListner = new XmppGroupMessageListenerImpl(this.xmppServiceListener, logger);
+            XmppGroupMessageListenerImpl groupMessageListner = new XmppGroupMessageListenerImpl(this.xmppServiceListener, logger);
             muc.addMessageListener(groupMessageListner);
 
-            if (muc.isJoined()) {
+            /*if (muc.isJoined()) {
                 muc.changeAvailabilityStatus("Available", Presence.Mode.available);
                 RoomInfo info = manager.getRoomInfo(muc.getRoom());
                 this.xmppServiceListener.onRoomJoined(info);
-            }
+            }*/
 
         } catch (SmackException.NotConnectedException | XMPPException.XMPPErrorException |
                 SmackException.NoResponseException | XmppStringprepException |
-                InterruptedException | MultiUserChatException.NotAMucServiceException |
-                MultiUserChatException.MucNotJoinedException e) {
+                InterruptedException | MultiUserChatException.NotAMucServiceException e) {
             Log.d("ReactNative","Could not join chat room : " +  e);
         }
     }
@@ -258,22 +267,25 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
             MultiUserChatManager mucManager = MultiUserChatManager.getInstanceFor(connection);
             MultiUserChat muc = mucManager.getMultiUserChat(JidCreate.entityBareFrom(roomJid));
 
-            if (!muc.isJoined()){
+            /*if (!muc.isJoined()){
                 try {
                     Log.d("ReactNative", "sendRoomMessage: Rejoining "+roomJid+" with nick " + this.userName+" and pwd "+password);
-                    muc.join(Resourcepart.from(this.userName), password);
-                    muc.changeAvailabilityStatus("Available", Presence.Mode.available);
 
+                    muc.join(Resourcepart.from(this.userName), password);
+                    Thread.sleep(2000);
+                    muc.changeAvailabilityStatus("Available", Presence.Mode.available);
+                    Thread.sleep(2000);
                 }catch(XMPPException.XMPPErrorException ee){
                     Log.d("ReactNative", "sendRoomMessage: Could not rejoin room "+roomJid+" : " + ee.getMessage());
                 }
-            }
-            final Message chatMessage = new Message();
+            }*/
+            /*final Message chatMessage = new Message();
             chatMessage.setType(Message.Type.groupchat);
             chatMessage.setBody(text);
             //String room = muc.getRoom();
             chatMessage.setTo(muc.getRoom());
-            muc.sendMessage(chatMessage);
+            */
+            muc.sendMessage(text);
 
         } catch ( SmackException | XmppStringprepException | InterruptedException e) {
             Log.d("ReactNative", "Could not send group message : " + e);
@@ -367,8 +379,18 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
         }else if (packet instanceof Presence){
             Log.d("ReactNative","Rx Presence");
             this.xmppServiceListener.onPresence((Presence) packet);
+        }else if (packet instanceof Ping){
+            Log.d("ReactNative","Rx Ping");
+            try {
+                Ping ping = (Ping) packet;
+                connection.sendStanza(ping.getPong());
+                Log.d("ReactNative","Sx Pong ");
+            }catch(InterruptedException | SmackException.NotConnectedException e){
+                Log.d("ReactNative", "Could not send Pong : "+e);
+            }
         }else{
-            logger.log(Level.WARNING, "Got a Stanza, of unknown subclass", packet);
+
+            logger.log(Level.WARNING, "### Got a Stanza, of unknown subclass ", packet.toXML("packet"));
         }
     }
 
