@@ -22,6 +22,7 @@ static DDLogLevel ddLogLevel = DDLogLevelVerbose;
 static DDLogLevel ddLogLevel = DDLogLevelInfo;
 #endif
 
+static NSString *lastMessageId = @"";
 
 @implementation RCTConvert (AuthMethod)
 RCT_ENUM_CONVERTER(AuthMethod, (@{ PLAIN_AUTH : @(Plain),
@@ -86,9 +87,41 @@ RCT_EXPORT_MODULE();
 }
 
 -(void)onMessage:(XMPPMessage *)message {
-    NSDictionary *res = [self contentOf:message];
-    [self.bridge.eventDispatcher sendAppEventWithName:@"RNXMPPMessage" body:res];
-
+    // NSDictionary *res = [self contentOf:message];
+    //[self.bridge.eventDispatcher sendAppEventWithName:@"RNXMPPMessage" body:res];
+    
+    //Message should have stanza id defined
+    if ([message elementForName:@"stanza-id"] && [[message elementForName:@"stanza-id"] attributeForName:@"id"] ){
+        NSString *msgId = [[[message elementForName:@"stanza-id"] attributeForName:@"id"] stringValue];
+        if ([msgId isEqualToString:lastMessageId]){
+            DDLogVerbose(@"onMessage : stanza Id is the same as before, won't send to JS.");
+            return;
+        }
+        lastMessageId = msgId;
+        
+        NSString *ts = @"";
+        NSXMLElement * delay = [message elementForName:@"delay" xmlns:@"urn:xmpp:delay"];
+        if (delay != NULL){
+            NSString *stamp = [[delay attributeForName:@"stamp"] stringValue];
+            NSDateFormatter *dateformatter=[[NSDateFormatter alloc]init];
+            if ([stamp rangeOfString:@"."].location == NSNotFound)
+                [dateformatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss'Z'"];
+            else
+                [dateformatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"];
+            NSDate *dt = [dateformatter dateFromString:stamp];
+            ts = [[NSNumber numberWithDouble:[dt timeIntervalSince1970]] stringValue];
+        }
+        [self.bridge.eventDispatcher sendAppEventWithName:@"RNXMPPMessage" body:@{
+            @"id": msgId,
+            @"body": [message body],
+            @"from": [message fromStr],
+            @"to": [message toStr],
+            @"timestamp": ts,
+            @"src": [message XMLString]
+        }];
+    } else {
+        DDLogVerbose(@"onMessage : stanza-id or attribute id not found in message.. won't send to JS.");
+    }
 }
 
 -(void)onRosterReceived:(NSArray *)list {
@@ -125,18 +158,29 @@ RCT_EXPORT_MODULE();
     [self.bridge.eventDispatcher sendAppEventWithName:@"RNXMPPRoomJoined" body:@{@"roomId":roomId, @"roomName":roomId}];
 }
 
--(void)onInvitedRoomJoined:(NSString *)roomId password:(NSString *)password subject:(NSString *)subject {
+-(void)onInvitedRoomJoined:(NSString *)roomId password:(NSString *)password subject:(NSString *)subject reason:(NSString *)reason {
     
     DDLogVerbose(@"%@  %@ ", THIS_FILE, THIS_METHOD);
     if (!subject){
         subject = @"";
     }
     
-    [self.bridge.eventDispatcher sendAppEventWithName:@"RNXMPPInvitedRoomJoined" body:@{@"roomId":roomId, @"roomName":roomId, @"password":password, @"subject":subject}];
+    [self.bridge.eventDispatcher sendAppEventWithName:@"RNXMPPInvitedRoomJoined" body:@{
+        @"roomId":roomId,
+        @"roomName":roomId,
+        @"password":password,
+        @"subject":subject,
+        @"reason": reason
+    }];
 }
 
 -(void)onOccupantJoined:(NSString *)roomId occupantJID:(NSString *)occupantJID {
-    [self.bridge.eventDispatcher sendAppEventWithName:@"RNXMPPOccupantJoined" body:@{@"roomId":roomId, @"roomName":roomId, @"occupantJID":occupantJID}];
+    [self.bridge.eventDispatcher sendAppEventWithName:@"RNXMPPOccupantJoined" body:@{
+        @"roomId":roomId,
+        @"roomName":roomId,
+        @"occupantJID":occupantJID
+        
+    }];
 }
 
 RCT_EXPORT_METHOD(trustHosts:(NSArray *)hosts){
@@ -195,9 +239,9 @@ RCT_EXPORT_METHOD(sendStanza:(NSString *)stanza){
     [[RNXMPPService sharedInstance] sendStanza:stanza];
 }
 
-RCT_EXPORT_METHOD(joinRoom:(NSString *)roomJID nickName:(NSString *)nickname password:(NSString *)password){
+RCT_EXPORT_METHOD(joinRoom:(NSString *)roomJID nickName:(NSString *)nickname password:(NSString *)password historyFrom:(NSString *)historyFrom){
     [RNXMPPService sharedInstance].delegate = self;
-    [[RNXMPPService sharedInstance] joinRoom:roomJID nickName:nickname password:password];
+    [[RNXMPPService sharedInstance] joinRoom:roomJID nickName:nickname password:password historyFrom:historyFrom];
 }
 
 RCT_EXPORT_METHOD(leaveRoom:(NSString *)roomJID)

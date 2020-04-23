@@ -10,6 +10,7 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.RCTNativeAppEventEmitter;
 
+import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
@@ -19,10 +20,12 @@ import org.jivesoftware.smack.roster.RosterGroup;
 import org.jivesoftware.smackx.delay.packet.DelayInformation;
 import org.jivesoftware.smackx.muc.RoomInfo;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import com.rnxmpp.utils.Parser;
 
 import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import fr.arnaudguyon.xmltojsonlib.XmlToJson;
 
@@ -45,6 +48,8 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
     public static final String RNXMPP_LOGIN =       "RNXMPPLogin";
     public static final String RNXMPP_ROOMJOIN =       "RNXMPPRoomJoined";
     public static final String RNXMPP_INVITEDROOMJOIN = "RNXMPPInvitedRoomJoined";
+    private SimpleDateFormat iso8601Format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+    private SimpleDateFormat iso8601FormatWMs = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
     private static String lastMessageId = "";
 
     ReactContext reactContext;
@@ -71,30 +76,47 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
     @Override
     public void onMessage(Message message) {
         try {
+
             //Block repeated messages with same id
-            if (message.getStanzaId().equals(lastMessageId)){
-                return;
+            XmlToJson xmlToJson = new XmlToJson.Builder(message.toXML("message").toString()).build();
+            JSONObject msgObj = xmlToJson.toJson().getJSONObject("message");
+
+            Log.d("ReactNative", "Message JSON : "+msgObj.toString());
+
+            if(msgObj.has("body") && msgObj.has("stanza-id")) {
+
+                String msgId = (String) msgObj.getJSONObject("stanza-id").get("id");
+                if (lastMessageId.equals(msgId)){
+                    //Repeated message
+                    return;
+                }
+                lastMessageId = msgId;
+
+                String body = (String) msgObj.get("body");
+
+                String ts = "";
+                if(msgObj.has("delay")){
+                    String dtStr = (String) msgObj.getJSONObject("delay").get("stamp");
+                    if (dtStr != null){
+                        Date dt =((dtStr.indexOf(".")>0)?iso8601FormatWMs:iso8601Format).parse(dtStr);
+                        ts = String.valueOf(dt.getTime());
+                    }
+                }
+
+                WritableMap params = Arguments.createMap();
+                params.putString("id", msgId);
+                params.putString("body", body);
+                params.putString("from", message.getFrom().toString());
+                params.putString("to", message.getTo().toString());
+                params.putString("timestamp", ts);
+                params.putString("src", message.toXML("message").toString());
+                sendEvent(reactContext, RNXMPP_MESSAGE, params);
+
+            }else{
+                Log.d("ReactNative", "Message doesn't have body");
             }
 
-            lastMessageId = message.getStanzaId();
-            String ts = "";
-            try{
-                DelayInformation delayInformation = message.getExtension("delay", "urn:xmpp:delay");
-                ts = String.valueOf( delayInformation.getStamp().getTime());
-            }catch(Exception e){ }
 
-            //ObjectMapper mapper = new ObjectMapper();
-            Log.d("ReactNative", "New Message " + message.toXML("message"));
-
-            WritableMap params = Arguments.createMap();
-            params.putString("thread", message.getThread());
-            params.putString("subject", message.getSubject());
-            params.putString("body", message.getBody());
-            params.putString("from", message.getFrom().toString());
-            params.putString("to", message.getTo().toString());
-            params.putString("timestamp", ts);
-            params.putString("src", message.toXML("message").toString());
-            sendEvent(reactContext, RNXMPP_MESSAGE, params);
         }catch(Exception e){
             e.printStackTrace();
             Log.d("ReactNative", "Error in onMessage : "+e.getMessage());
@@ -166,7 +188,7 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
 
     @Override
     public void onRoomJoined(RoomInfo info){
-        Log.d("ReactNative", "Bridge: onInvitedRoomJoined name "+info.getName()+"  Localpart "+info.getRoom().getLocalpartOrNull()+"  Resource "+info.getRoom().getDomain());
+        Log.d("ReactNative", "Bridge: onRoomJoined name "+info.getName()+"  Localpart "+info.getRoom().getLocalpartOrNull()+"  Resource "+info.getRoom().getDomain());
         String roomName = info.getRoom().getLocalpart() + "@" + info.getRoom().getDomain();
         WritableMap params = Arguments.createMap();
         params.putString("roomId", roomName);
@@ -175,8 +197,8 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
     }
 
     @Override
-    public void onInvitedRoomJoined(RoomInfo info, String password){
-        Log.d("ReactNative", "Bridge: onRoomJoined name "+info.getName()+"  Localpart "+info.getRoom().getLocalpartOrNull()+"  Resource "+info.getRoom().getDomain());
+    public void onInvitedRoomJoined(RoomInfo info, String password, String reason){
+        Log.d("ReactNative", "Bridge: onInvitedRoomJoined name "+info.getName()+"  Localpart "+info.getRoom().getLocalpartOrNull()+"  Resource "+info.getRoom().getDomain());
         String roomName = info.getRoom().getLocalpart() + "@" + info.getRoom().getDomain();
         WritableMap params = Arguments.createMap();
         //Sending occupants doesn't make sense, its better that the app checks for it afresh every time
@@ -184,6 +206,7 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
         params.putString("roomName", roomName);
         params.putString("password", password);
         params.putString("subject", info.getSubject());
+        params.putString("reason", reason);
         sendEvent(reactContext, RNXMPP_INVITEDROOMJOIN, params);
     }
 

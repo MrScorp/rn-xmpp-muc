@@ -58,9 +58,11 @@ import java.security.NoSuchAlgorithmException;
 
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -150,7 +152,7 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
         roster.addRosterLoadedListener(this);
 
         final MultiUserChatManager mucManager = MultiUserChatManager.getInstanceFor(connection);
-        mucManager.addInvitationListener((xmppConnection, muc, fromRoomJID, reason, password1, message, invite) -> {
+        mucManager.addInvitationListener((xmppConnection, muc, fromRoomJID, reason, roomPassword, message, invite) -> {
             try{
                 Log.d("ReactNative","Invitation Received from "+ fromRoomJID.toString()+" : "+invite);
 
@@ -159,15 +161,33 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
                     return;
                 }
                 Log.d("ReactNative","Joining as "+userId);
+                Calendar c = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+                c.set(2020, 01,01);
+                // If "reason" is in the format "<invite_datetime_unixtimestamp>:<reason_message>",
+                // request history from that date
+                if (reason.matches("^[0-9]{13}[:].*")){
+                    long inviteTs = Long.valueOf(reason.substring(0, reason.indexOf(":")));
+                    if (inviteTs > c.getTimeInMillis()){ // Looks like a Valid Invite time, set it as calendar's date
+                        c.setTimeInMillis(inviteTs);
+                    }
+                }
+                MucEnterConfiguration.Builder mecb = muc.getEnterConfigurationBuilder(Resourcepart.from(userId))
+                        .requestHistorySince(c.getTime())
+                        .withPassword(roomPassword);
 
-                muc.join(Resourcepart.from(userId), password1);
+                MucEnterConfiguration mucEnterConfig = mecb.build();
+                muc.join(mucEnterConfig);
+
+
+
+                //muc.join(Resourcepart.from(userId), password1);
 
                 groupMessageListner = new XmppGroupMessageListenerImpl(XmppServiceSmackImpl.this.xmppServiceListener, logger);
                 muc.addMessageListener(groupMessageListner);
 
                 RoomInfo info = mucManager.getRoomInfo(muc.getRoom());
 
-                XmppServiceSmackImpl.this.xmppServiceListener.onInvitedRoomJoined(info, password1);
+                XmppServiceSmackImpl.this.xmppServiceListener.onInvitedRoomJoined(info, roomPassword, reason);
 
             }catch(Exception e){
                 e.printStackTrace();
@@ -245,6 +265,8 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
             MultiUserChatManager manager = MultiUserChatManager.getInstanceFor(connection);
             MultiUserChat muc = manager.getMultiUserChat(JidCreate.entityBareFrom(roomJid));
 
+            Calendar c = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+            c.set(2020, 01,01);
             MucEnterConfiguration.Builder mecb = muc.getEnterConfigurationBuilder(Resourcepart.from(userNickname));
             if (timestamp > 5000L){
                 mecb.requestHistorySince(new Date(timestamp));
@@ -303,6 +325,7 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
             chatMessage.setTo(muc.getRoom());
             */
             muc.sendMessage(text);
+
 
         } catch ( SmackException | XmppStringprepException | InterruptedException e) {
             Log.d("ReactNative", "Could not send group message : " + e);

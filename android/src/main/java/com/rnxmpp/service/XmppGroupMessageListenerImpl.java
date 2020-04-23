@@ -4,8 +4,6 @@ import android.util.Log;
 
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.MessageListener;
-
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class XmppGroupMessageListenerImpl implements com.rnxmpp.service.XmppGroupMessageListener, MessageListener {
@@ -19,8 +17,7 @@ public class XmppGroupMessageListenerImpl implements com.rnxmpp.service.XmppGrou
     }
 
     public void processMessage(Message message) {
-        Log.d("ReactNative", "Rx Group Message : " + message.getStanzaId());
-
+        Log.d("ReactNative", "Rx Group Message");
         this.xmppServiceListener.onMessage(message);
     }
 

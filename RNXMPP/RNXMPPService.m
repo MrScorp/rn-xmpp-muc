@@ -199,7 +199,7 @@ static DDLogLevel ddLogLevel = DDLogLevelInfo;
     // init xmppRooms dict
     xmppRooms = [NSMutableDictionary dictionary];
     
-    lastMessageId = @"";
+    lastMessage = @"";
 }
 
 - (void)teardownStream
@@ -530,26 +530,23 @@ static DDLogLevel ddLogLevel = DDLogLevelInfo;
 
 - (void)xmppStream:(XMPPStream *)sender didReceiveMessage:(XMPPMessage *)message
 {
-    DDLogVerbose(@"%@: %@", THIS_FILE, THIS_METHOD);
-    NSString * msgId = [[message elementForName:@"id"] stringValue];
-    if ([lastMessageId isEqualToString:msgId]){
-        return;
-    }
-    lastMessageId = msgId;
+    DDLogVerbose(@"%@: %@ Received : %@", THIS_FILE, THIS_METHOD, [message XMLString]);
     
     if (message.isErrorMessage){
         [self.delegate onError:[message errorMessage]];
     } else {
-        NSXMLElement * x = [message elementForName:@"x" xmlns:XMPPMUCUserNamespace];
-        if (x) {
-            NSXMLElement * invite  = [x elementForName:@"invite"];
-            if (invite != NULL) {
-                NSXMLElement * password = [x elementForName:@"password" ];
-                NSString * pwd = [password stringValue];
-                [self autojoinInvitedRoom:[message fromStr] password:pwd];
+        NSXMLElement * xEle = [message elementForName:@"x" xmlns:XMPPMUCUserNamespace];
+        if (xEle) {
+            NSXMLElement * inviteEle  = [xEle elementForName:@"invite"];
+            if (inviteEle) {
+                NSXMLElement * reasonEle = [inviteEle elementForName:@"reason" ];
+                NSXMLElement * passwordEle = [xEle elementForName:@"password" ];
+                NSString * password = [passwordEle stringValue];
+                NSString * reason = [reasonEle stringValue];
+                [self autojoinInvitedRoom:[message fromStr] password:password reason:reason];
             }
         } else {
-                [self.delegate onMessage:message];
+            [self.delegate onMessage:message];
         }
     }
 }
@@ -584,7 +581,7 @@ static DDLogLevel ddLogLevel = DDLogLevelInfo;
 - (void)xmppRoomDidJoin:(XMPPRoom *)sender
 {
     DDLogVerbose(@" ##### YOU HAVE JOINED ROOM : %@", [[sender roomJID] full]);
-    [self.delegate onRoomJoined:[[sender roomJID] full]];
+    //[self.delegate onRoomJoined:[[sender roomJID] full]];
 }
 
 -(void)sendMessage:(NSString *)text to:(NSString *)to thread:(NSString *)thread {
@@ -646,14 +643,30 @@ static DDLogLevel ddLogLevel = DDLogLevelInfo;
     
 }
 
--(void)joinRoom:(NSString *)roomJID nickName:(NSString *)nickname password:(NSString *)password //resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject
+-(void)joinRoom:(NSString *)roomJID nickName:(NSString *)nickname password:(NSString *)password historyFrom:(NSString *)historyFrom  //resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject
 {
+    if (historyFrom == NULL)
+        historyFrom = @"0";
+    long timestamp = [historyFrom longLongValue];
+    NSXMLElement *history = [NSXMLElement elementWithName:@"history"];
+    if ( timestamp > 5000 ){
+        NSTimeInterval timesecs = timestamp/1000;
+        NSDate * dt = [NSDate dateWithTimeIntervalSince1970:timesecs];
+        NSDateFormatter *dateformatter=[[NSDateFormatter alloc]init];
+        [dateformatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss'Z'"];
+        NSString *dtString = [dateformatter stringFromDate:dt];
+        DDLogVerbose(@"Join Room : Requesting History since %@", dtString);
+        [history addAttributeWithName:@"since" stringValue:dtString];
+    } else {
+        [history addAttributeWithName:@"maxstanzas" stringValue:@"0"];
+    }
+    
     XMPPJID *ROOM_JID = [XMPPJID jidWithString:roomJID];
     XMPPRoomMemoryStorage *roomMemoryStorage = [[XMPPRoomMemoryStorage alloc] init];
     xmppRoom = [[XMPPRoom alloc] initWithRoomStorage:roomMemoryStorage jid:ROOM_JID dispatchQueue:dispatch_get_main_queue()];
     [xmppRooms setObject:xmppRoom forKey:roomJID];
-    NSXMLElement *history = [NSXMLElement elementWithName:@"history"];
-    [history addAttributeWithName:@"maxstanzas" stringValue:@"0"];
+    
+    
     [xmppRoom activate:xmppStream];
     [xmppRoom addDelegate:self delegateQueue:dispatch_get_main_queue()];
     [xmppRoom joinRoomUsingNickname:nickname history:history password:password];
@@ -670,7 +683,7 @@ static DDLogLevel ddLogLevel = DDLogLevelInfo;
     XMPPRoom * room = [xmppRooms objectForKey:roomJID];
     if (!room){
         NSString * userId = [username componentsSeparatedByString:@"@"][0];
-        [self joinRoom:roomJID nickName:userId password:password];
+        [self joinRoom:roomJID nickName:userId password:password historyFrom:@"0"];
     }
     
     [[xmppRooms objectForKey:roomJID] sendMessageWithBody:message];
@@ -683,27 +696,43 @@ static DDLogLevel ddLogLevel = DDLogLevelInfo;
     [xmppRooms removeObjectForKey:roomJID];
 }
 
--(void)autojoinInvitedRoom:(NSString *)roomJID password:(NSString *)password {
+-(void)autojoinInvitedRoom:(NSString *)roomJID password:(NSString *)password reason:(NSString *)reason {
     
     DDLogVerbose(@"%@: %@  :: Room JID %@  PWD %@", THIS_FILE, THIS_METHOD, roomJID, password);
     XMPPJID * ROOM_JID = [XMPPJID jidWithString:roomJID];
+    xmppRoom = [xmppRooms objectForKey:roomJID];
+    if (xmppRoom && xmppRoom.isJoined){
+        DDLogVerbose(@"%@: %@  :: Room JID %@ is already joined with..", roomJID);
+        return;
+    }
     XMPPRoomMemoryStorage *roomMemoryStorage = [[XMPPRoomMemoryStorage alloc] init];
     xmppRoom = [[XMPPRoom alloc] initWithRoomStorage:roomMemoryStorage jid:ROOM_JID dispatchQueue:dispatch_get_main_queue()];
     [xmppRooms setObject:xmppRoom forKey:ROOM_JID];
+    
     NSXMLElement *history = [NSXMLElement elementWithName:@"history"];
-    [history addAttributeWithName:@"maxstanzas" stringValue:@"0"];
+    
+    NSPredicate *tsTest = [NSPredicate predicateWithFormat:@"^[0-9]{13}[:].*$"];
+    if ([tsTest evaluateWithObject:reason]){
+        long timestamp = [[reason componentsSeparatedByString:@":"][1] longLongValue];
+        NSTimeInterval timesecs = timestamp/1000;
+        NSDate * dt = [NSDate dateWithTimeIntervalSince1970:timesecs];
+        NSDateFormatter *dateformatter=[[NSDateFormatter alloc]init];
+        [dateformatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss'Z'"];
+        NSString *dtString = [dateformatter stringFromDate:dt];
+        DDLogVerbose(@"Join Room : Requesting History since %@", dtString);
+        [history addAttributeWithName:@"since" stringValue:dtString];
+    } else {
+        [history addAttributeWithName:@"since" stringValue:@"2020-01-01T00:00:00Z"];
+    }
     [xmppRoom activate:xmppStream];
     [xmppRoom addDelegate:self delegateQueue:dispatch_get_main_queue()];
     
     NSString * userId = [username componentsSeparatedByString:@"@"][0];
     [xmppRoom joinRoomUsingNickname:userId history:history password:password];
     
-    [self goOnline];
-    
     NSString * subject = [xmppRoom roomSubject];
     //[xmppRoom isJoined] always returns false, so will have to rely on xmppRoomDidJoin
-    [self.delegate onInvitedRoomJoined:roomJID password:password subject:subject];
-    
+    [self.delegate onInvitedRoomJoined:roomJID password:password subject:subject reason: reason];
 }
 
 @end

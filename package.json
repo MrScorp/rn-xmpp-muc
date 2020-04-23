@@ -1,6 +1,6 @@
 {
   "name": "rn-xmpp-muc",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "XMPP MUC Library for React Native",
   "homepage":"https://github.com/MrScorp/rn-xmpp-muc",
   "main": "index.js",

@@ -23,5 +23,5 @@ public interface XmppServiceListener {
     void onDisconnect(Exception e);
     void onLogin(String username, String password);
     void onRoomJoined(RoomInfo info);
-    void onInvitedRoomJoined(RoomInfo info, String password);
+    void onInvitedRoomJoined(RoomInfo info, String password, String reason);
 }

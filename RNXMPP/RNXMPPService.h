@@ -33,7 +33,7 @@
 -(void)onLogin:(NSString *)username password:(NSString *)password;
 -(void)onLoginError:(NSError *)error;
 -(void)onRoomJoined:(NSString *)roomId;
--(void)onInvitedRoomJoined:(NSString *)roomId password:(NSString *)password subject:(NSString *)subject;
+-(void)onInvitedRoomJoined:(NSString *)roomId password:(NSString *)password subject:(NSString *)subject reason:(NSString *)reason;
 -(void)onOccupantJoined:(NSString *)roomId occupantJID:(NSString *)occupantJID;
 
 @end
@@ -51,7 +51,7 @@
     NSArray *trustedHosts;
     NSString *username;
     NSString *password;
-    NSString *lastMessageId;
+    NSString *lastMessage;
     AuthMethod authMethod;
     BOOL customCertEvaluation;
     BOOL isXmppConnected;
@@ -74,7 +74,7 @@
 - (void)fetchRoster;
 - (void)sendStanza:(NSString *)stanza;
 - (void)sendRoomInvite:(NSString *)roomJID to:(NSString *)to reason:(NSString *)reason;
-- (void)joinRoom:(NSString *)roomJID nickName:(NSString *)nickname password:(NSString *)password;
+- (void)joinRoom:(NSString *)roomJID nickName:(NSString *)nickname password:(NSString *)password historyFrom:(NSString *)historyFrom;
 - (void)sendRoomMessage:(NSString *)roomJID password:(NSString *)password message:(NSString *)message;
 - (void)leaveRoom:(NSString *)roomJID;
 
