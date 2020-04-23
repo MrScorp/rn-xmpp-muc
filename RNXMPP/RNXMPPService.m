@@ -711,15 +711,19 @@ static DDLogLevel ddLogLevel = DDLogLevelInfo;
     
     NSXMLElement *history = [NSXMLElement elementWithName:@"history"];
     
-    NSPredicate *tsTest = [NSPredicate predicateWithFormat:@"^[0-9]{13}[:].*$"];
-    if ([tsTest evaluateWithObject:reason]){
-        long timestamp = [[reason componentsSeparatedByString:@":"][1] longLongValue];
+    NSError *error = NULL;
+    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^[0-9]{13}[:]" options:NSRegularExpressionCaseInsensitive error:&error];
+    NSTextCheckingResult *match = [regex firstMatchInString:reason options:0 range:NSMakeRange(0, [reason length])];
+    
+    if (match){
+        long timestamp = [[reason componentsSeparatedByString:@":"][0] longLongValue];
         NSTimeInterval timesecs = timestamp/1000;
         NSDate * dt = [NSDate dateWithTimeIntervalSince1970:timesecs];
         NSDateFormatter *dateformatter=[[NSDateFormatter alloc]init];
         [dateformatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss'Z'"];
         NSString *dtString = [dateformatter stringFromDate:dt];
-        DDLogVerbose(@"Join Room : Requesting History since %@", dtString);
+        DDLogVerbose(@"### AutoJoin : history since %@", dtString);
+        
         [history addAttributeWithName:@"since" stringValue:dtString];
     } else {
         [history addAttributeWithName:@"since" stringValue:@"2020-01-01T00:00:00Z"];
