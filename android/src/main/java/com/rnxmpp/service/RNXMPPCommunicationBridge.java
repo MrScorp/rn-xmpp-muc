@@ -48,8 +48,8 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
     public static final String RNXMPP_LOGIN =       "RNXMPPLogin";
     public static final String RNXMPP_ROOMJOIN =       "RNXMPPRoomJoined";
     public static final String RNXMPP_INVITEDROOMJOIN = "RNXMPPInvitedRoomJoined";
-    private SimpleDateFormat iso8601Format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-    private SimpleDateFormat iso8601FormatWMs = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+    private SimpleDateFormat iso8601Format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
+    private SimpleDateFormat iso8601FormatWMs = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
     private static String lastMessageId = "";
 
     ReactContext reactContext;
@@ -83,7 +83,11 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
 
             Log.d("ReactNative", "Message JSON : "+msgObj.toString());
 
-            if(msgObj.has("body") && msgObj.has("stanza-id")) {
+
+            JSONObject stanza = msgObj.getJSONObject("stanza-id");
+            String body = message.getBody();
+
+            if(body != null && !body.isEmpty() && stanza != null) {
 
                 String msgId = (String) msgObj.getJSONObject("stanza-id").get("id");
                 if (lastMessageId.equals(msgId)){
@@ -91,8 +95,6 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
                     return;
                 }
                 lastMessageId = msgId;
-
-                String body = (String) msgObj.get("body");
 
                 String ts = "";
                 if(msgObj.has("delay")){

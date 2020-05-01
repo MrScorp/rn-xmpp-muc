@@ -175,19 +175,18 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
                         .requestHistorySince(c.getTime())
                         .withPassword(roomPassword);
 
-                MucEnterConfiguration mucEnterConfig = mecb.build();
-                muc.join(mucEnterConfig);
+                final MucEnterConfiguration mucEnterConfig = mecb.build();
 
 
+                        groupMessageListner = new XmppGroupMessageListenerImpl(XmppServiceSmackImpl.this.xmppServiceListener, logger);
+                        muc.addMessageListener(groupMessageListner);
 
-                //muc.join(Resourcepart.from(userId), password1);
+                        RoomInfo info = mucManager.getRoomInfo(muc.getRoom());
+                        XmppServiceSmackImpl.this.xmppServiceListener.onInvitedRoomJoined(info, roomPassword, reason);
 
-                groupMessageListner = new XmppGroupMessageListenerImpl(XmppServiceSmackImpl.this.xmppServiceListener, logger);
-                muc.addMessageListener(groupMessageListner);
+                        muc.join(mucEnterConfig);
 
-                RoomInfo info = mucManager.getRoomInfo(muc.getRoom());
 
-                XmppServiceSmackImpl.this.xmppServiceListener.onInvitedRoomJoined(info, roomPassword, reason);
 
             }catch(Exception e){
                 e.printStackTrace();
@@ -372,7 +371,7 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
     public void presence(String to, String type) {
         try {
 
-            connection.sendStanza(new Presence(Presence.Type.fromString(type), type, 1, Presence.Mode.fromString(type)));
+            connection.sendStanza(new Presence(Presence.Type.fromString(type), type, 1, Presence.Mode.valueOf(type)));
         } catch (SmackException.NotConnectedException | InterruptedException e) {
             logger.log(Level.WARNING, "Could not send presence", e);
         }

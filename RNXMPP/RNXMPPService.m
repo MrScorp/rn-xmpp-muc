@@ -653,7 +653,7 @@ static DDLogLevel ddLogLevel = DDLogLevelInfo;
         NSTimeInterval timesecs = timestamp/1000;
         NSDate * dt = [NSDate dateWithTimeIntervalSince1970:timesecs];
         NSDateFormatter *dateformatter=[[NSDateFormatter alloc]init];
-        [dateformatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss'Z'"];
+        [dateformatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"];
         NSString *dtString = [dateformatter stringFromDate:dt];
         DDLogVerbose(@"Join Room : Requesting History since %@", dtString);
         [history addAttributeWithName:@"since" stringValue:dtString];
@@ -720,13 +720,15 @@ static DDLogLevel ddLogLevel = DDLogLevelInfo;
         NSTimeInterval timesecs = timestamp/1000;
         NSDate * dt = [NSDate dateWithTimeIntervalSince1970:timesecs];
         NSDateFormatter *dateformatter=[[NSDateFormatter alloc]init];
-        [dateformatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss'Z'"];
+        [dateformatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"];
         NSString *dtString = [dateformatter stringFromDate:dt];
         DDLogVerbose(@"### AutoJoin : history since %@", dtString);
         
         [history addAttributeWithName:@"since" stringValue:dtString];
+        
+        DDLogVerbose(@"### AutoJoin : verifying history since %@", [history attributeStringValueForName:@"since"]);
     } else {
-        [history addAttributeWithName:@"since" stringValue:@"2020-01-01T00:00:00Z"];
+        [history addAttributeWithName:@"since" stringValue:@"2020-01-01T00:00:00.000Z"];
     }
     [xmppRoom activate:xmppStream];
     [xmppRoom addDelegate:self delegateQueue:dispatch_get_main_queue()];
