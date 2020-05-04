@@ -175,18 +175,19 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
                         .requestHistorySince(c.getTime())
                         .withPassword(roomPassword);
 
-                final MucEnterConfiguration mucEnterConfig = mecb.build();
+                MucEnterConfiguration mucEnterConfig = mecb.build();
+                muc.join(mucEnterConfig);
 
 
-                        groupMessageListner = new XmppGroupMessageListenerImpl(XmppServiceSmackImpl.this.xmppServiceListener, logger);
-                        muc.addMessageListener(groupMessageListner);
 
-                        RoomInfo info = mucManager.getRoomInfo(muc.getRoom());
-                        XmppServiceSmackImpl.this.xmppServiceListener.onInvitedRoomJoined(info, roomPassword, reason);
+                //muc.join(Resourcepart.from(userId), password1);
 
-                        muc.join(mucEnterConfig);
+                groupMessageListner = new XmppGroupMessageListenerImpl(XmppServiceSmackImpl.this.xmppServiceListener, logger);
+                muc.addMessageListener(groupMessageListner);
 
+                RoomInfo info = mucManager.getRoomInfo(muc.getRoom());
 
+                XmppServiceSmackImpl.this.xmppServiceListener.onInvitedRoomJoined(info, roomPassword, reason);
 
             }catch(Exception e){
                 e.printStackTrace();
@@ -428,8 +429,7 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
                 Log.d("ReactNative", "Could not send Pong : "+e);
             }
         }else{
-
-            logger.log(Level.WARNING, "### Got a Stanza, of unknown subclass ", packet.toXML("packet"));
+            logger.log(Level.WARNING, "### Got a Stanza, of unknown subclass > ");
         }
     }
 

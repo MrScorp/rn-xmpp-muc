@@ -490,7 +490,7 @@ static DDLogLevel ddLogLevel = DDLogLevelInfo;
     DDLogVerbose(@"%@: %@", THIS_FILE, THIS_METHOD);
     [self.delegate onIQ:iq];
 
-    return NO;
+    return YES;
 }
 
 - (void)xmppRosterDidPopulate:(XMPPRosterMemoryStorage *)sender {
@@ -653,11 +653,13 @@ static DDLogLevel ddLogLevel = DDLogLevelInfo;
         NSTimeInterval timesecs = timestamp/1000;
         NSDate * dt = [NSDate dateWithTimeIntervalSince1970:timesecs];
         NSDateFormatter *dateformatter=[[NSDateFormatter alloc]init];
+        dateformatter.timeZone = [NSTimeZone timeZoneWithName:@"UTC"];
         [dateformatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"];
         NSString *dtString = [dateformatter stringFromDate:dt];
-        DDLogVerbose(@"Join Room : Requesting History since %@", dtString);
         [history addAttributeWithName:@"since" stringValue:dtString];
+        DDLogVerbose(@"Join Room : Requesting History since %@", [history attributeStringValueForName:@"since"]);
     } else {
+        DDLogVerbose(@"joinRoom  Not requesting history");
         [history addAttributeWithName:@"maxstanzas" stringValue:@"0"];
     }
     
@@ -720,13 +722,12 @@ static DDLogLevel ddLogLevel = DDLogLevelInfo;
         NSTimeInterval timesecs = timestamp/1000;
         NSDate * dt = [NSDate dateWithTimeIntervalSince1970:timesecs];
         NSDateFormatter *dateformatter=[[NSDateFormatter alloc]init];
+        dateformatter.timeZone = [NSTimeZone timeZoneWithName:@"UTC"];
         [dateformatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"];
         NSString *dtString = [dateformatter stringFromDate:dt];
         DDLogVerbose(@"### AutoJoin : history since %@", dtString);
         
         [history addAttributeWithName:@"since" stringValue:dtString];
-        
-        DDLogVerbose(@"### AutoJoin : verifying history since %@", [history attributeStringValueForName:@"since"]);
     } else {
         [history addAttributeWithName:@"since" stringValue:@"2020-01-01T00:00:00.000Z"];
     }

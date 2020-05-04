@@ -10,15 +10,14 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.RCTNativeAppEventEmitter;
 
-import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smack.roster.RosterEntry;
 import org.jivesoftware.smack.roster.RosterGroup;
-import org.jivesoftware.smackx.delay.packet.DelayInformation;
 import org.jivesoftware.smackx.muc.RoomInfo;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -48,8 +47,8 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
     public static final String RNXMPP_LOGIN =       "RNXMPPLogin";
     public static final String RNXMPP_ROOMJOIN =       "RNXMPPRoomJoined";
     public static final String RNXMPP_INVITEDROOMJOIN = "RNXMPPInvitedRoomJoined";
-    private SimpleDateFormat iso8601Format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
-    private SimpleDateFormat iso8601FormatWMs = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+    private SimpleDateFormat iso8601Format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+
     private static String lastMessageId = "";
 
     ReactContext reactContext;
@@ -84,10 +83,13 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
             Log.d("ReactNative", "Message JSON : "+msgObj.toString());
 
 
-            JSONObject stanza = msgObj.getJSONObject("stanza-id");
+
+
             String body = message.getBody();
 
-            if(body != null && !body.isEmpty() && stanza != null) {
+            if(body != null && !body.isEmpty() && msgObj.has(("stanza-id") )) {
+
+                JSONObject stanza = msgObj.getJSONObject("stanza-id");
 
                 String msgId = (String) msgObj.getJSONObject("stanza-id").get("id");
                 if (lastMessageId.equals(msgId)){
@@ -100,7 +102,10 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
                 if(msgObj.has("delay")){
                     String dtStr = (String) msgObj.getJSONObject("delay").get("stamp");
                     if (dtStr != null){
-                        Date dt =((dtStr.indexOf(".")>0)?iso8601FormatWMs:iso8601Format).parse(dtStr);
+                        //Java time format can't parse the format "+00:00" which openfire is sending, so rip it off before milliseconds
+                        if (dtStr.indexOf(".") > 0)
+                            dtStr = dtStr.substring(0, dtStr.indexOf("."));
+                        Date dt = iso8601Format.parse(dtStr);
                         ts = String.valueOf(dt.getTime());
                     }
                 }
@@ -115,7 +120,7 @@ public class RNXMPPCommunicationBridge implements XmppServiceListener {
                 sendEvent(reactContext, RNXMPP_MESSAGE, params);
 
             }else{
-                Log.d("ReactNative", "Message doesn't have body");
+                Log.d("ReactNative", "Message doesn't have body and/or stanza");
             }
 
 
