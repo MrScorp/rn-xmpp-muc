@@ -419,16 +419,21 @@ public class XmppServiceSmackImpl implements XmppService, ChatManagerListener, S
         }else if (packet instanceof Presence){
             Log.d("ReactNative","Rx Presence");
             this.xmppServiceListener.onPresence((Presence) packet);
-        }else if (packet instanceof Ping){
-            Log.d("ReactNative","Rx Ping");
+        }else if (packet instanceof Ping) {
+            Log.d("ReactNative", "Rx Ping");
             try {
                 Ping ping = (Ping) packet;
                 connection.sendStanza(ping.getPong());
-                Log.d("ReactNative","Sx Pong ");
-            }catch(InterruptedException | SmackException.NotConnectedException e){
-                Log.d("ReactNative", "Could not send Pong : "+e);
+                Log.d("ReactNative", "Sx Pong ");
+            } catch (InterruptedException | SmackException.NotConnectedException e) {
+                Log.d("ReactNative", "Could not send Pong : " + e);
             }
+        } else if (packet instanceof Message) {
+            Log.d("ReactNative", "Rx Message " + packet.toXML("message"));
+            Message message = (Message) packet;
+            this.xmppServiceListener.onMessage(message);
         }else{
+
             logger.log(Level.WARNING, "### Got a Stanza, of unknown subclass > ");
         }
     }

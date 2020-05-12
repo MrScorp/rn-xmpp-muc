@@ -553,7 +553,7 @@ static DDLogLevel ddLogLevel = DDLogLevelInfo;
 
 - (void)xmppStream:(XMPPStream *)sender didReceivePresence:(XMPPPresence *)presence
 {
-    DDLogVerbose(@"%@: %@ - %@", THIS_FILE, THIS_METHOD, [presence fromStr]);
+    DDLogVerbose(@"%@: %@ - %@ : %@", THIS_FILE, THIS_METHOD, [presence fromStr], [presence XMLString]);
     [self.delegate onPresence:presence];
 }
 
